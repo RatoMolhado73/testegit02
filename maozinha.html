@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Teachable Machine - Exemplo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #webcam-container {
+            width: 300px;
+            height: 300px;
+            margin: auto;
+            background-color: #40f865;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>IA com Teachable Machine</h1>
+
+    <div id="webcam-container"></div>
+
+    <div id="label-container"></div>
+
+    <button id="toggleBtn">Ligar Câmera</button>
+
+    <!-- Importa as bibliotecas do Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+    <script>
+        // URL do seu modelo exportado no Teachable Machine
+        const URL = "https://teachablemachine.withgoogle.com/models/3Q0IDryB-/";
+
+        let model, webcam, isOn = false;
+
+        document.getElementById("toggleBtn").addEventListener("click", function () {
+            if (!isOn) {
+                ligarCamera();
+                this.textContent = "Desligar Câmera";
+            } else {
+                desligarCamera();
+                this.textContent = "Ligar Câmera";
+            }
+            isOn = !isOn;
+        });
+
+        async function ligarCamera() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            webcam = new tmImage.Webcam(300, 300, true);
+            await webcam.setup();
+            await webcam.play();
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            window.requestAnimationFrame(loop);
+        }
+
+        function desligarCamera() {
+            if (webcam) {
+                webcam.stop();
+                document.getElementById("webcam-container").innerHTML = "";
+            }
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            if (isOn) {
+                window.requestAnimationFrame(loop);
+            }
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            prediction.sort((a, b) => b.probability - a.probability);
+            const classeMaisProvavel = prediction[0];
+
+            document.getElementById("label-container").innerText =
+                `${classeMaisProvavel.className} (${(classeMaisProvavel.probability * 100).toFixed(2)}%)`;
+
+            if (classeMaisProvavel.className === "mão fechada" && classeMaisProvavel.probability > 0.8) {
+                // Muda o plano de fundo para vermelho
+                document.body.style.backgroundColor = "#f44336";
+            } else if (classeMaisProvavel.className === "mão aberta" && classeMaisProvavel.probability > 0.8) {
+                // Muda o plano de fundo para verde
+                document.body.style.backgroundColor = "#4caf50";
+
+            } else if (classeMaisProvavel.className === "kamehameha" && classeMaisProvavel.probability > 0.8) {
+                // Muda o plano de fundo para aqua
+                document.body.style.backgroundColor = "#00FFFF";
+            } else {
+                // Volta para cor padrão
+                document.body.style.backgroundColor = "#ffffff";
+            }
+        }
+    </script>
+</body>
+
+</html>
